@@ -835,6 +835,155 @@ app.use("/useUser", async (req, res) => {
   }
 });
 
+//用户打卡接口
+app.use("/punch", async (req, res) => {
+  let {
+    staff_name,
+    type,
+    start_date,
+    start_time,
+    splice_date,
+    end_date,
+    end_time,
+  } = req.body;
+
+  //表示上班打卡
+  if (type == 1) {
+    //检验当前天打卡记录是否存在
+    let sql = `select * from attendance where staff_name = ? and start_date like ?`;
+    let sqlArr = [staff_name, `%${splice_date}%`];
+    let resp = await dbConnect.SySqlConnect(sql, sqlArr);
+
+    if (resp && resp.length > 0) {
+      //查询下班卡是否存在 已存在则不能修改上班卡
+      let sql = `select * from attendance where staff_name = ? and end_date like ?`;
+      let sqlArr = [staff_name, `%${splice_date}%`];
+      let respEndDate = await dbConnect.SySqlConnect(sql, sqlArr);
+      if (respEndDate && respEndDate.length > 0) {
+        //表示已存在下班卡  无法修改上班卡
+        res.send({
+          code: 500,
+          msg: "已打过下班卡，无法修改上班打卡，请联系管理员进行操作",
+        });
+      } else {
+        let sql = `update attendance set start_date = ?,start_time = ? where staff_name =? and start_date like ?  `;
+        let sqlArr = [start_date, start_time, staff_name, `%${splice_date}%`];
+        let respData = await dbConnect.SySqlConnect(sql, sqlArr);
+        console.log(888, respData);
+
+        if (respData.affectedRows == 1) {
+          res.send({
+            code: 200,
+            msg: " 上班打卡更新成功",
+          });
+        } else {
+          res.send({
+            code: 500,
+            msg: "上班打卡更新失败",
+          });
+        }
+      }
+    } else {
+      let sql = `insert into attendance (staff_name,start_date,start_time) values (?,?,?)`;
+      let sqlArr = [staff_name, start_date, start_time];
+      let respData = await dbConnect.SySqlConnect(sql, sqlArr);
+
+      if (respData.affectedRows == 1) {
+        res.send({
+          code: 200,
+          msg: " 上班打卡成功",
+        });
+      } else {
+        res.send({
+          code: 500,
+          msg: "上班打卡失败",
+        });
+      }
+    }
+  } else {
+    //下班打卡
+    let sql = `select * from attendance where staff_name = ? and start_date like ?`;
+    let sqlArr = [staff_name, `%${splice_date}%`];
+    let resp = await dbConnect.SySqlConnect(sql, sqlArr);
+
+    if (resp && resp.length > 0) {
+      let sql = `update attendance set end_date = ?,end_time = ?  where staff_name = ? and start_date like ? `;
+      let sqlArr = [end_date, end_time, staff_name, `%${splice_date}%`];
+      let respData = await dbConnect.SySqlConnect(sql, sqlArr);
+      if (respData.affectedRows == 1) {
+        res.send({
+          code: 200,
+          msg: "下班打卡成功",
+        });
+      } else {
+        res.send({
+          code: 500,
+          msg: "下班打卡失败",
+        });
+      }
+    } else {
+      res.send({
+        code: 500,
+        msg: "未查询到上班打卡记录，无法打下班卡，请联系管理员进行补卡操作",
+      });
+    }
+  }
+});
+
+//用户打卡列表查询
+app.use("/punchList", async (req, res) => {
+  let resp = [];
+  let { staff_name, pageNum } = req.body;
+  let pageSize = 10;
+  let sql = "";
+  let sqlArr = [];
+
+  if (staff_name && staff_name.length > 0) {
+    sql = `SELECT * FROM attendance where staff_name like? order by start_time desc limit ?`;
+    sqlArr = [`%${staff_name}%`, pageSize * pageNum];
+  } else {
+    sql = `SELECT * FROM attendance order by start_time desc limit ?`;
+    sqlArr = [pageSize * pageNum];
+  }
+
+  resp = await dbConnect.SySqlConnect(sql, sqlArr);
+
+  if (resp.length > 0) {
+    res.send({
+      code: 200,
+      msg: "列表查询成功",
+      data: resp,
+      count: resp.length,
+    });
+  } else {
+    res.send({
+      code: 200,
+      msg: "列表查询成功",
+      data: [],
+      count: 0,
+    });
+  }
+});
+
+//打卡记录删除
+app.use("/delPunch", async (req, res) => {
+  let { attend_id } = req.body;
+  let sql = `delete from attendance where attend_id =? `;
+  let sqlArr = [attend_id];
+  let resp = await dbConnect.SySqlConnect(sql, sqlArr);
+  if (resp.affectedRows == 1) {
+    res.send({
+      code: 200,
+      msg: " 删除成功",
+    });
+  } else {
+    res.send({
+      code: 500,
+      msg: "删除失败",
+    });
+  }
+});
+
 app.listen(6040, () => {
   console.log("项目启动成功，监听在6040端口！！！");
 });
