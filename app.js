@@ -984,6 +984,151 @@ app.use("/delPunch", async (req, res) => {
   }
 });
 
+//薪资添加接口
+app.use("/AddSalary", async (req, res) => {
+  let { staff_name, dep_id, job_id, remake, month, money, work_day } = req.body;
+  let regTime = Time();
+  let sql = `insert into salary (staff_name, dep_id, job_id, remake, month, money,work_day,create_time ) values(?,?,?,?,?,?,?,?)`;
+  let sqlArr = [
+    staff_name,
+    dep_id,
+    job_id,
+    remake,
+    month,
+    money,
+    work_day,
+    regTime,
+  ];
+  let resp = await dbConnect.SySqlConnect(sql, sqlArr);
+  if (resp.affectedRows == 1) {
+    res.send({
+      code: 200,
+      msg: "薪资记录添加成功",
+    });
+  } else {
+    res.send({
+      code: 500,
+      msg: "薪资记录添加失败",
+    });
+  }
+});
+
+//薪资列表查询
+app.use("/salaryList", async (req, res) => {
+  let resp = [];
+  let { staff_name, month, pageNum } = req.body;
+  let pageSize = 10;
+  if (!staff_name && !month) {
+    let sql = `select * from salary  order by create_time desc limit ?`;
+    let sqlArr = [pageSize * pageNum];
+    resp = await dbConnect.SySqlConnect(sql, sqlArr);
+  } else if (staff_name && month) {
+    let sql = `select * from salary where staff_name like ? and month = ? order by create_time desc  limit ? `;
+    let sqlArr = [`%${staff_name}%`, month, pageSize * pageNum];
+    resp = await dbConnect.SySqlConnect(sql, sqlArr);
+  } else {
+    let queryString = staff_name ? "staff_name" : "month";
+    let queryContent = month ? month : staff_name;
+    let sql = `select * from salary where ${queryString} like ? order by create_time desc limit ? `;
+    let sqlArr = [`%${queryContent}%`, pageSize * pageNum];
+    resp = await dbConnect.SySqlConnect(sql, sqlArr);
+  }
+  if (resp.length > 0) {
+    res.send({
+      code: 200,
+      msg: "列表查询成功",
+      data: resp,
+      count: resp.length,
+    });
+  } else {
+    res.send({
+      code: 200,
+      msg: "未查询到数据",
+      data: [],
+      count: 0,
+    });
+  }
+});
+
+//查询薪资详情
+app.use("/querySalaryById", async (req, res) => {
+  let { salary_id } = req.body;
+  let sql = `select * from salary where salary_id =? `;
+  let sqlArr = [salary_id];
+  let resp = await dbConnect.SySqlConnect(sql, sqlArr);
+  if (resp.length > 0) {
+    res.send({
+      code: 200,
+      msg: "查询成功",
+      data: resp[0],
+    });
+  } else {
+    res.send({
+      code: 500,
+      msg: "查询失败",
+      data: [],
+    });
+  }
+});
+
+//薪资详情编辑接口
+app.use("/editSalaryById", async (req, res) => {
+  let {
+    staff_name,
+    dep_id,
+    job_id,
+    remake,
+    month,
+    money,
+    work_day,
+    salary_id,
+  } = req.body;
+  let regTime = Time();
+  let sql = `update salary set staff_name =?,dep_id=?,job_id=?,remake=?,month=?,money=?,work_day=?,create_time=? where salary_id =? `;
+  let sqlArr = [
+    staff_name,
+    dep_id,
+    job_id,
+    remake,
+    month,
+    money,
+    work_day,
+    regTime,
+    salary_id,
+  ];
+  let resp = await dbConnect.SySqlConnect(sql, sqlArr);
+  if (resp.affectedRows == 1) {
+    res.send({
+      code: 200,
+      msg: "薪资信息编辑成功",
+    });
+  } else {
+    res.send({
+      code: 500,
+      msg: "薪资信息编辑失败",
+    });
+  }
+});
+
+//薪资记录删除
+app.use("/delSalary", async (req, res) => {
+  let { salary_id } = req.body;
+  let sql = `delete from salary where salary_id =? `;
+  let sqlArr = [salary_id];
+  let resp = await dbConnect.SySqlConnect(sql, sqlArr);
+  if (resp.affectedRows == 1) {
+    res.send({
+      code: 200,
+      msg: " 删除成功",
+    });
+  } else {
+    res.send({
+      code: 500,
+      msg: "删除失败",
+    });
+  }
+});
+
 app.listen(6040, () => {
   console.log("项目启动成功，监听在6040端口！！！");
 });
