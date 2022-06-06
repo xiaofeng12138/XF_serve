@@ -647,9 +647,19 @@ app.use("/delStaff", async (req, res) => {
 //====================================请假模块=======================================
 //查询可以请假人员列表
 app.use("/queryAllVacateUse", async (req, res) => {
-  let sql = `select staff_id,staff_name from staff where staff_status = 0 `;
+  let { role, username } = req.body;
+  let sql = "";
   let sqlArr = [];
-  let resp = await dbConnect.SySqlConnect(sql, sqlArr);
+  let resp;
+  if (role == 1) {
+    sql = `select staff_id,staff_name from staff where staff_status = 0 and staff_name = ?`;
+    sqlArr = [username];
+    resp = await dbConnect.SySqlConnect(sql, sqlArr);
+  } else {
+    sql = `select staff_id,staff_name from staff where staff_status = 0 `;
+    sqlArr = [];
+    resp = await dbConnect.SySqlConnect(sql, sqlArr);
+  }
   if (resp.length > 0) {
     res.send({
       code: 200,
@@ -692,10 +702,24 @@ app.use("/addvacate", async (req, res) => {
 
 //查询请假列表
 app.use("/queryVacatelist", async (req, res) => {
-  let sql = `SELECT staff_name,vacate_desc,vacate_id,create_time,start_date,end_date,staff.staff_id FROM vacate JOIN staff WHERE 
-   vacate.staff_id = staff.staff_id order by create_time desc`;
+  let { role, username } = req.body;
+  let sql = "";
   let sqlArr = [];
-  let resp = await dbConnect.SySqlConnect(sql, sqlArr);
+  let resp;
+
+  if (role == 1) {
+    //普通用户
+    sql = `SELECT staff_name,vacate_desc,vacate_id,create_time,start_date,end_date,staff.staff_id FROM vacate JOIN staff WHERE 
+   vacate.staff_id = staff.staff_id and staff.staff_name = ? order by create_time desc`;
+    sqlArr = [username];
+    resp = await dbConnect.SySqlConnect(sql, sqlArr);
+  } else {
+    sql = `SELECT staff_name,vacate_desc,vacate_id,create_time,start_date,end_date,staff.staff_id FROM vacate JOIN staff WHERE 
+   vacate.staff_id = staff.staff_id order by create_time desc`;
+    sqlArr = [];
+    resp = await dbConnect.SySqlConnect(sql, sqlArr);
+  }
+
   if (resp.length > 0) {
     res.send({
       code: 200,
@@ -869,7 +893,6 @@ app.use("/punch", async (req, res) => {
         let sql = `update attendance set start_date = ?,start_time = ? where staff_name =? and start_date like ?  `;
         let sqlArr = [start_date, start_time, staff_name, `%${splice_date}%`];
         let respData = await dbConnect.SySqlConnect(sql, sqlArr);
-        console.log(888, respData);
 
         if (respData.affectedRows == 1) {
           res.send({
@@ -933,18 +956,30 @@ app.use("/punch", async (req, res) => {
 //用户打卡列表查询
 app.use("/punchList", async (req, res) => {
   let resp = [];
-  let { staff_name, pageNum } = req.body;
+  let { staff_name, pageNum, role, username } = req.body;
   let pageSize = 10;
   let sql = "";
   let sqlArr = [];
-
-  if (staff_name && staff_name.length > 0) {
-    sql = `SELECT * FROM attendance where staff_name like? order by start_time desc limit ?`;
-    sqlArr = [`%${staff_name}%`, pageSize * pageNum];
+  if (role == 0) {
+    if (staff_name && staff_name.length > 0) {
+      sql = `SELECT * FROM attendance where staff_name like ? order by start_time desc limit ?`;
+      sqlArr = [`%${staff_name}%`, pageSize * pageNum];
+    } else {
+      sql = `SELECT * FROM attendance order by start_time desc limit ?`;
+      sqlArr = [pageSize * pageNum];
+    }
   } else {
-    sql = `SELECT * FROM attendance order by start_time desc limit ?`;
-    sqlArr = [pageSize * pageNum];
+    sql = `SELECT * FROM attendance where staff_name = ? order by start_time desc limit ?`;
+    sqlArr = [username, pageSize * pageNum];
   }
+
+  // if (staff_name && staff_name.length > 0) {
+  //   sql = `SELECT * FROM attendance where staff_name like? order by start_time desc limit ?`;
+  //   sqlArr = [`%${staff_name}%`, pageSize * pageNum];
+  // } else {
+  //   sql = `SELECT * FROM attendance order by start_time desc limit ?`;
+  //   sqlArr = [pageSize * pageNum];
+  // }
 
   resp = await dbConnect.SySqlConnect(sql, sqlArr);
 
@@ -1125,6 +1160,26 @@ app.use("/delSalary", async (req, res) => {
     res.send({
       code: 500,
       msg: "删除失败",
+    });
+  }
+});
+
+//查询可以添加员工的姓名
+app.use("/queryUserCanAdd", async (req, res) => {
+  let sql = `select username,user_id from user where status = 1 `;
+  let sqlArr = [];
+  let resp = await dbConnect.SySqlConnect(sql, sqlArr);
+  if (resp.length > 0) {
+    res.send({
+      code: 200,
+      msg: "查询成功",
+      data: resp,
+    });
+  } else {
+    res.send({
+      code: 500,
+      msg: "查询失败",
+      data: [],
     });
   }
 });
